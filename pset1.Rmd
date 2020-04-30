@@ -1,0 +1,59 @@
+---
+title: "Pset 1"
+author: "Joe"
+date: "January 28, 2019"
+output: html_document
+---
+
+### Due date: 2/6/2020, by 11:59PM
+
+This document was created using [R Markdown](https://r4ds.had.co.nz/r-markdown.html), an extension of R that we'll learn later in the term. I'll post both the final version and the code used to create it.
+
+### Purpose of the assignment
+
+This assignment is going to have you do things similar to what we've been doing in class so far. We'll be using R to code and create new variables using the General Social Survey (GSS) and conduct some simple analyses. The actual analyses are supposed to be review, but we're applying them in R for the first time. Please feel free to ask questions on Canvas or to contact Joe or a TF directly. These are *not intended to be trick questions*, but you may need to be creative in answering some of them.
+
+### Logistics
+
+Feel free to collaborate on this assignment. Each person should submit a final assignment as a PDF which represents their own work. When submitting your assignment, please make it clear which question each response is intended to address.  Also, make sure to include R code with clear commenting at the end of your assignment. TFs will use this to identify the source of any errors you may have made. If they're not able to follow the code, they won't be able to find the mistakes.
+
+#### Background
+
+The GSS includes several items asking respondents to answer questions about science. These are unlike other survey items in that they have correct and incorrect answers, and are intended to measure knowledge rather than opinion. We'll work with the following variables:
+
+| variable name | item number | item text                                                                                                                                                | correct response              |
+|---------------|-------------|----------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------|
+| `hotcore `    | 479         | First, the center of the earth is very hot. (Is that true or false?)                                                                                     | true                          |
+| `radioact`    | 480         | All radioactivity is man-made. (Is that true or false?)                                                                                                  | false                         |
+| `boyorgrl`    | 481         | It is the father's gene that decides whether the baby is a boy or a girl. (Is that true or false?)                                                       | true                          |
+| `lasers  `    | 482         | Lasers work by focusing sound waves. (Is that true or false?)                                                                                            | false                         |
+| `electron`    | 483         | Electrons are smaller than atoms. (Is that true or false?)                                                                                               | true                          |
+| `viruses `    | 484         | Antibiotics kill viruses as well as bacteria. (Is that true or false?)                                                                                   | false                         |
+| `condrift`    | 488         | The continents on which we live have been moving their locations for millions of years and will continue to move in the future. (Is that true or false?) | true                          |
+| `earthsun`    | 491         | Now, does the earth go around the sun or does the sun go around the earth? (Is that true or false?)                                                      | the earth goes around the sun |
+
+
+You can find more information on items by visiting [the ARDA webbsite](http://www.thearda.com/archive/files/Codebooks/GSS2016_CB.asp) and searching for the variable name.^[For those who are interested, you'll notice that we don't include all of the potential items. For example, we omit an item about the Big Bang. These items are handled a little differently than the others. The GSS has three versions of this item, two of which are especially interesting to us. One version asks if the universe began with a huge explosion, one asks if *astronomers believe* that the universe began with a huge explosion. This is because many respondents understand that scientists have a given theory, but for religious reasons do not believe that the theory is true. This is different from not knowing the theory of the Big Bang. The GSS asks some respondents each item; comparing the answers can help them to figure out the proportion of respondents for whom this is the case. Far more respondents correctly answered that astronomers believe that the universe began with a huge explosion than answered that the universe did, in fact, start with a huge explosion. I'm also omitting the item asking respondents how long it takes for the earth to revolve around the sun, because it was only asked of respondents who correctly answered the previous item. These are more difficult to handle, so we omit them for now.]
+
+
+
+#### Step 1
+
+For each of survey items above, calculate the proportion of respondents who got that item correct. Report and discuss these proportions in a substantive way (feel free to focus on one or two).
+
+Here is some sample code to get you started: `gss$electron_correct <- gss$electron == 'true'`. This code will create a variable which is `TRUE` when `electron` is `"true"` and `FALSE` otherwise.  Taking the average value of this variable will give you the proportion of respondents who answered the question correctly (R will interpret `TRUE` and `FALSE` as `1` and `0`, respectively). You can adapt this line of code for the other variables.  
+
+library(readstata13) # load the package. Run this once per R session
+gss <- read.dta13('https://www.dropbox.com/s/zcqzom9yajer5vv/GSS2016.dta?dl=1')
+gss$married <- gss$mar1 == 'married'
+summary(gss$married)
+
+#### Step 2
+
+Create a new variable, `sciscore`, which gives the proportion of science items that a respondent answered correctly. Create a histogram of the variable and describe its distribution (include at least one measure of center and at least one of spread). Note that you can click "Export" in the plot viewer to save an image or copy it to the clipboard.
+
+At this point, drop all respondents who have a missing value for this variable using the following code: `gss <- subset(gss, !is.na(sciscore))`, which essentially says "replace `gss` with a subset of `gss` where `sciscore` is not missing". Dropping these respondents will things easier later on.
+
+#### Step 3
+
+Fit a model regressing `sciscore` on respondent age (`age`). Report and interpret the results. Include any information you think is relevant.

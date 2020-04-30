@@ -1,0 +1,120 @@
+---
+title: "Pset 7"
+author: "Joe"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document: default
+---
+
+### Due date: 4/16/2020, by 11:59PM
+
+### Purpose of the assignment
+
+This assignment is going to have you practice doing permutation tests. As we've mentioned in class, permutation tests are incredibly useful tools in part because they allow you to conduct significance tests with far fewer assumptions than more traditional methods, and in part because they can be adapted to test so many different things. They're not always as powerful as more common tests, but they can be more trustworthy and more flexible.
+
+### Logistics
+
+Feel free to collaborate on this assignment. Each person should submit a final assignment as a PDF which represents their own work. When submitting your assignment, please make it clear which question each response is intended to address.  Also, make sure to include R code with clear commenting at the end of your assignment. TFs will use this to identify the source of any errors you may have made. If they're not able to follow the code, they won't be able to find the mistakes.
+
+#### Step 1
+
+The replication study we looked at was actully replicating two different experiments. In the second study, respondents were randomly assigned to either wash their hands before answering the questions (`condition == 1`) or not (`condition == 0`). We'll be looking to see if the treatment (handwashing) had any effect on respondent affect (how they felt).
+
+After the experiment and after being asked all these questions about morally problematic situations, respondents were asked to report how relaxed, angry, happy, sad, afraid, depressed, disgusted, and upset they felt. Higher responses (on a scale from 0 to 21) indicate stronger feelings. We will define positive affect as feeling more relaxed and happy, and less angry, sad, afraid, depressed, disgusted, and upset (so you'll also need to do some reverse coding). You will need to create the variable averaging these together on your own. Drop anyone who is missing a response to any of these items. If you've done this correctly, you should get the following summary statistics:
+
+```
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
+  4.500   9.031  10.938  11.262  13.469  20.125       2 
+
+```{r}
+exp2 <- read.csv('https://www.dropbox.com/s/o3lascax36yhy4u/Exp2_Data.csv?dl=1')
+feelings_mean <- c("Depressed", "Angry", "Sad",  "Afraid",  "Happy", "Disgusted", "Upset", "Relaxed" )
+#Store the required values in a variable
+exp2$Depressed <- 21 - exp2$Depressed
+exp2$Angry <- 21 - exp2$Angry
+exp2$Sad <- 21 - exp2$Sad
+exp2$Afraid <- 21 -exp2$Afraid
+exp2$Disgusted <- 21 -exp2$Disgusted
+exp2$Upset  <- 21 -exp2$Upset 
+#Do the reverse coding for al the variables storing the negative emotion
+exp2$average_mean <- rowMeans(exp2[feelings_mean], na.rm=TRUE)
+summary(exp2$average_mean, na.rm=TRUE )
+#Find the average value of a feeling 
+
+```
+
+
+As an *optional* first step, produce some plots that show the distribution of positive affect, both the overall distribution and the differences between treated and control units. Present the plots and explain what they show you. There's no set number that you need to use, but two or three should probably be fine; feel free to go beyond that if it's interesting to you.
+
+
+#### Step 2
+
+Using a permutation test, conduct a test of a null-hypothesis that being assigned to treatment (washing hands before beginning the experiment) had no effect on the positivity of respondent affect. In a short paragraph, explain the steps you took and the results you obtained. Consider using a plot to demostrate your results.
+```{r}
+R <- 1000
+feelings_mean <- rep(NA, R)
+set.seed(12)
+#Run 1000 samples by setting a random seed
+for (i in 1:R)
+{
+exp2$condition_permuted <- sample(exp2$Condition)
+#Identify the sample from the population
+means <- exp2 %>% group_by(condition_permuted) %>% summarize(conditional_mean = mean(average_mean)) # group by condition permuted and find the mean of judgment_mean
+#Calculate the average value of the feelings from the sample
+  feelings_mean[i] <- means$conditional_mean[means$condition_permuted == '1' ] - means$conditional_mean[means$condition_permuted == '0'] 
+  # Find the difference in average feelings across control and treatment group
+  if(i %% 1000 == 0) print(i) # and track our progress through the loop
+}
+densities <- density(feelings_mean) 
+# create a density for the mean diffs; this is what geom_density does behind the scenes
+head(densities)
+
+summary(feelings_mean)
+#Generate a density plot for the mean difference between treatment and control group
+library(ggplot2)
+plot_dat <- data.frame(x = densities$x, y = densities$y) # prepare a dataset for plotting; we need to do this in a complex way because we're doing something a little more complicated than 
+ggplot(plot_dat, aes(x = x, y = y)) + geom_line() + geom_area(data = subset(plot_dat, x >= feelings_mean), fill = 'salmon2', alpha = .5) + 
+  geom_vline(xintercept = feelings_mean, col = 'red', lty = 2)
+
+```
+
+
+#### Step 3
+
+Using some variety of the bootstrap, conduct a test of a null-hypothesis that being assigned to treatment (washing hands before beginning the experiment) had no effect on the positivity of respondent affect. In a short paragraph, explain the steps you took and the results you obtained.
+```{r}
+R <- 1000 
+# this will stored the number of replicate samples we want to take
+estimated_effects <- rep(NA, R) 
+# for each replicate sample, this will hold the estimated treatment effect
+estimated_ses <- rep(NA, R) 
+# for each replicate sample, this will hold the estimated standard error of the estimated treatment effect; we won't use this directly, but we WILL use it to motivate a new bootstrap later
+estimated_Rsquare <- rep(NA, R)
+n <- nrow(exp2)
+set.seed(12)
+
+for(i in 1:R){
+  boot_feelings <- sample(n, size = n, replace = TRUE) 
+  boot_data <- exp2[boot_feelings, ]
+  #Create a sample from the dataset
+  mod_boot <- lm(average_mean ~ Condition, boot_data)
+  #find the regression values for the average feelings against the condition variable in a repeated random sample across control and treatment group
+  estimated_effects[i] <- coef(mod_boot)['Condition'] 
+  #Calculate the regression coefficients
+  estimated_ses[i] <- coef(summary(mod_boot))['Condition','Std. Error']
+  #Calculate the standard error 
+  estimated_Rsquare[i] <- (summary(mod_boot)$r.squared)
+  #Calculate the R Square values 
+}
+#Calculate p value for the model
+summary(mod_boot)
+summary(estimated_effects)
+#Calculate the standard deviation for regression coefficient in the repeated random samples
+se_bootstrap <- sd(estimated_effects)
+#Generate a plot of the treatment effect, standard error and R square of the repeated random samples
+ggplot(mapping = aes(x = estimated_effects)) + geom_histogram()  
+ggplot(mapping = aes(x = estimated_ses)) + geom_histogram()  
+ggplot(mapping = aes(x = estimated_Rsquare)) + geom_histogram() + geom_vline(xintercept = c(0,0.2), col = 'palevioletred2', lty = 2) # this is our estimate of the sampling distribution of the treatment effect
+
+```
+

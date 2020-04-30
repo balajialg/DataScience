@@ -1,0 +1,179 @@
+---
+title: "Pset 6"
+author: "Joe"
+date: "February 18th, 2020"
+output: html_document
+---
+
+### Due date: 3/26/2020, by 11:59PM
+
+This document was created using [R Markdown](https://r4ds.had.co.nz/r-markdown.html), an extension of R that we'll learn later in the term. I'll post both the final version and the code used to create it.
+
+### Purpose of the assignment
+
+In this pset we'll be doing some webscraping. This is a really neat skill to have, since it allows you to pull data that haven't necessarily been set up for you to access like this. We'll also continue to practice with looping. Friends, I will not lie to you. This can be frustrating. We're trying to give you a lot of support in the assignment. If you find that it's not sufficient, you need to let us know. Please start this one a little early, because you may experience challenges. On the other hand, once you finish you will have done real webscraping.
+
+### Logistics
+
+Feel free to collaborate on this assignment. Each person should submit a document representing their own work. When submitting your assignment, please make it clear which question each response is intended to address.  Also, make sure to include R code with clear commenting at the end of your assignment. TFs will use this to identify the source of any errors you may have made. If they're not able to follow your code, they won't be able to find the mistakes.
+
+#### Background
+
+insideschools.org has data for parents who are considering sending children to middle or high schools in New York City. That makes is a good source of data on those schools. We're going to try to scrape some data about those schools from their website. Specifically, we're going to focus on high schools. There are 498 of them, although we're going to lose a lot of them in the process of doing the scraping due to issues with the websites. Doing a more thorough job would require either modifying our code to account for inconsistencies in how the pages are set up or filling things in by hand.
+
+#### Step 1 (required)
+
+The first thing we need to do is to get a list of all of the school websites. Point your browser to this [site](https://www.insideschools.org/guides/high-school/results?attend=moving&specialneeds=none&shsat=yes&audition=yes&gpa=&math=&ela=&user_address=&boroughs%5B%5D=0&boroughs%5B%5D=1&boroughs%5B%5D=2&boroughs%5B%5D=3&boroughs%5B%5D=4)pset6.Rmd. Notice that the school links are spread out across 25 different pages. Our first step is going to be to scrape a single page, let's say the first one.
+
+Write code which reads in the page, extracts the links to the school websites, and extracts the school names FOR A SINGLE PAGE. You'll need to look at the source code for the page to figure out where those elements are stored. If you can, clean up the school names so that they look like the actual names; remove any unwanted elements (consider using the str_remove() function from stringr).
+
+Submit your code, and the links and school names from the first page.
+
+```{r}
+library(rvest)
+library(magrittr)
+library(ggplot2)
+library(dplyr)
+library(stringr) # the rvest package (a play on harvest), written by Hadley Wickham, makes webscraping fairly easy
+#Store the base url in a variable 
+base <- 'https://www.insideschools.org/guides/high-school/results?attend=moving&specialneeds=none&shsat=yes&audition=yes&gpa=&math=&ela=&user_address=&boroughs%5B%5D=0&boroughs%5B%5D=1&boroughs%5B%5D=2&boroughs%5B%5D=3&boroughs%5B%5D=4'
+school_data <- read_html(paste0(base)) # let's read in the page for the alaska gateway school district. In the end we're going to have to iterate this in a for loop, but while we're developing the code, it's easier to work with a single page; then we can build up to the full loop
+
+#Read the url to the school data by scraping the web page and remove the unnecessary characters such as account/sign-up and empty strings
+school_links <- school_data %>% html_nodes('li') %>% html_nodes('div') %>% html_nodes('a') %>% html_attr('href') %>% as.character() %>% str_remove_all("/account/sign-up")  %>% stringi::stri_remove_empty()
+
+#Read the school names from the web page while removing text such as Learn more and other escape characters
+school_names <- school_data %>% html_nodes('li') %>% html_nodes('div') %>% html_nodes('a') %>% html_text() %>% as.character() %>% str_remove_all('\"') %>% str_remove_all("\\n") %>% str_replace_all("Learn more","") %>% stringi::stri_remove_empty()
+
+```
+
+
+#### Step 2 (optional)
+
+Now we need to do this for all of the pages. Go to the bottom of the page and click to see page 2. Copy the link and paste it into R; do you see how it differs from the link to the first page? Do the same for page 3. Try to find a pattern that will let you loop across the various pages.
+
+Now write code which loops through pages 2 through 25, and appends the school links and names to the ones you've alread extracted. It might look something like
+
+```{r}
+#Store the links seperately
+base_link <- "https://insideschools.org/guides/high-school/results/page/"
+der_link <- "?attend=moving&audition=yes&boroughs%5B%5D=0&boroughs%5B%5D=1&boroughs%5B%5D=2&boroughs%5B%5D=3&boroughs%5B%5D=4&ela=&gpa=&math=&shsat=yes&specialneeds=none&user_address="
+
+ #assume that you have two vectors, school_links and school_names.
+for(i in 2:25){
+  #Read a web page from the link shared. Use the iterator i to loop over the variable name
+  page <- read_html(paste0(base_link,i,der_link)) 
+  #Extract the link from the web page and store it in school_links.this variable
+  school_links.this <- school_data %>% html_nodes('li') %>% html_nodes('div') %>% html_nodes('a') %>% html_attr('href') %>% as.character() %>% str_remove_all("/account/sign-up")  %>% stringi::stri_remove_empty() 
+  #Extract the names of the variable and store it in the school_names.this variable
+  school_names.this <- school_data %>% html_nodes('li') %>% html_nodes('div') %>% html_nodes('a') %>% html_text() %>% as.character() %>% str_remove_all("\\n") %>% str_replace_all("Learn more","") %>% stringi::stri_remove_empty()
+
+  #Concatenate the newly scraped links and add it to the older variable school_links storing links from step 1
+  school_links <- c(school_links, school_links.this) 
+  #Concatenate the newly scraped names to the oldver variable school_links from step 1
+  school_names <- c(school_names, school_names.this) 
+  }
+  tail(school_links)
+  tail(school_names)
+  
+```
+
+As a challenge, see if you can find a way to process *all* of the pages (including page 1) in a single loop. This code might start with
+
+```
+school_links <- c()
+school_names <- c()
+```
+
+However you do it, the end result of this step should be
+
+1. A list of all the school links, and
+2. A list of all the school names
+
+Submit your code and the last 6 links and names (the `tail()` function will do this).
+
+#### Step 3 (required)
+
+These pages contain fairly minimal structure, so we need to read in the data a little differently than before. Look at the source code for the first school link (`paste0('https://insideschools.org/', school_links[1])`). Find a way to extract *all* of the statistics and *all* of the names of those statistics from the page. For example, if the first school is Eleanor Roosevelt High School, the first few names of the statistics might be "How many teachers say order and discipline are maintained at this school?" and "How many students say they feel safe in the hallways, bathrooms and locker rooms?", and the corresponding statistics would be 86% and 99%.
+
+I would not suggest trying to extract each statistic individually; much simpler is going to be to just grab them all in a single line of code, i.e.:
+
+
+
+```{r}
+#Concatenate the base url and the links scraped from web page. Read the web page from the mentioned link
+school_first_link <- paste0('https://insideschools.org', school_links[1])
+page <- read_html(school_first_link)
+#Read the stats data using the html_nodes by passing the corresponding tag and .stats-value class value
+stats <- page %>% html_nodes('div') %>% html_nodes('.stat-value') %>% html_text() %>% as.character() %>% str_remove_all("\\n|%")
+#Read the value for the statistics by using the .stat-title class
+titles <- page %>% html_nodes('div') %>% html_nodes('.stat-title') %>% html_text() %>% as.character() %>% str_remove_all("\\n")  
+```
+
+Once more, please submit the code and also the statistics and titles produced by the code for this particular school.
+
+#### Step 4 (optional)
+
+Write a for loop which loops over all the school links and extracts the necessary information, storing each school's data in a slot of a list. This requires some extra work due to data quality issues.
+
+Here is some code to get you started. You do *not* need to use it, but you may find it helpful.
+
+```{r}
+vals <- list()
+base <- "https://insideschools.org"
+  
+for(i in 1:length(school_links))
+  {
+  #Store the combined url into a local variable
+  link.this <- paste0(base, school_links[i])
+  #Read the web page and store it in a variable
+  page_new <-  read_html(link.this)
+  #Read the statistics name from the page and store it in titles variable
+  titles <- page_new %>% html_nodes('div') %>% html_nodes('.stat-title')%>% html_text() %>%     as.character() %>% str_remove_all("\\n")
+  #Read the statistics value from the page and store it in the stats variable
+  stats <- page_new %>% html_nodes('div') %>% html_nodes('.stat-value')%>% html_text() %>% as.character() %>% str_remove_all("\\n|%")
+  #If the number of names and values in a statistics are not matching then skip to the next value
+  if(length(stats) != length(titles)){ 
+    next # and skip to the next value of i so that this school doesn't cause problems for the loop
+  }
+  names(stats) <- titles # attach the names to the stats
+  stats <- stats[!duplicated(names(stats))] # delete any duplicated stats; for some reason some pages have these
+  mat <- t(matrix(stats)) # turn the stats into a matrix
+  colnames(mat) <- names(stats) # and give the columns of the matrix the correct names
+  data.this <- data.frame(mat) # now make this matrix into a dataframe
+  # write code here which adds a column to data.this called school which stores the name of the current school
+#  data.this[i] <- stats
+  data.this$schoolname <- school_names[i]
+  # write code which stores data.this in the ith slot of vals
+  vals[[i]] <- data.this
+}
+school_dat <- bind_rows(vals) 
+school_dat %>% data.frame()
+tail(school_dat[1:5, ]) %>% data.frame()
+# create a new dataframe called school_dat which is all of these dataframes appended onto each other
+```
+tail(school_dat[1:5, ], na.rm=TRUE)
+
+The final dataset should have 443 rows and 48 columns. This can take a while to run, so give it time.
+
+Submit your code and the last few rows of the first five variables (try `tail(school.dat[1:5, ])`)
+
+#### Step 5 (optional)
+
+Find the average percent of students who feel safe in the hallways, bathrooms, and locker rooms for schools with metal detectors and for schools without.
+
+Submit the averages and code.
+
+```{r}
+#Reassigning the lengthy names of the variables to easier to read studentsafety and metaldetectors 
+names(school_dat)[2] <- 'studentsafety'
+names(school_dat)[26] <- 'metaldetectors'
+#Convert al the string characters into a numeric values
+school_dat$studentsafety <- as.numeric(school_dat$studentsafety)
+#Use summarize method to calculate the average students who feel safe with and without metal detectors and store it in a dataframe
+avg_student_safety <- school_dat %>%  summarize( studentsafety_avg_no = mean(school_dat$studentsafety[school_dat$metaldetectors == 'No'], na.rm = TRUE), studentsafety_avg_yes = mean(school_dat$studentsafety[school_dat$metaldetectors == 'Yes'], na.rm = TRUE)) %>% na.omit()
+school_dat %>% group_by(school_dat$metaldetectors) %>%  summarize( studentsafety_avg_no = mean(school_dat$studentsafety, na.rm = TRUE)) %>% na.omit()
+
+avg_student_safety %>% data.frame()
+
+```
